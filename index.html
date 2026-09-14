@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>ColonBlow</title>
+  <link rel="stylesheet" href="style.css" />
+  <script type="importmap">
+    {
+      "imports": {
+        "three": "./vendor/three.module.js"
+      }
+    }
+  </script>
+</head>
+<body>
+  <canvas id="scene-canvas"></canvas>
+
+  <div id="title-screen" class="overlay">
+    <div class="panel">
+      <h1>ColonBlow</h1>
+      <p class="tagline">Get the food through in time.</p>
+      <p class="instructions">
+        Watch the creature turn transparent, then steer the food through its twisting insides.<br />
+        <strong>Arrows / WASD</strong> to steer &middot; <strong>Space</strong> to push (boost) &middot; avoid the polyps!<br />
+        Starts easy with a worm, then escalates through frog, fox, and alien anatomy.
+      </p>
+      <button id="start-btn">Start</button>
+    </div>
+  </div>
+
+  <div id="hud-bar" class="hidden">
+    <div id="level-name" class="level-name"></div>
+    <div class="bar-row">
+      <span class="bar-label">Progress</span>
+      <div class="bar-track"><div id="progress-fill" class="bar-fill progress"></div></div>
+    </div>
+    <div class="bar-row">
+      <span class="bar-label">Time</span>
+      <div class="bar-track"><div id="time-fill" class="bar-fill time"></div></div>
+      <span id="time-label" class="time-label"></span>
+    </div>
+    <div id="boost-icon" class="boost-icon">PUSH</div>
+  </div>
+
+  <div id="center-message" class="center-message hidden"></div>
+  <div id="hit-flash" class="hit-flash"></div>
+
+  <div id="end-screen" class="overlay hidden">
+    <div class="panel">
+      <h1 id="end-title"></h1>
+      <p id="end-sub"></p>
+      <button id="restart-btn">Retry</button>
+    </div>
+  </div>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>
