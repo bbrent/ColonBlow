@@ -73,5 +73,11 @@ export function createHud() {
     bindRestart(fn) {
       el.restartBtn.addEventListener('click', fn);
     },
+    bindBoost(fn) {
+      el.boostIcon.addEventListener('pointerdown', (e) => {
+        e.stopPropagation();
+        fn();
+      });
+    },
   };
 }

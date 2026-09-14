@@ -1,38 +1,36 @@
 import * as THREE from 'three';
+import { TARGET_HEIGHT } from './path.js';
 
 function makeSkinMaterial(color, extra = {}) {
   return new THREE.MeshStandardMaterial({ color, roughness: 0.6, transparent: true, opacity: 1, ...extra });
 }
 
-function wrapCharacter(group, opaqueMaterials, previewTubeGeometry, previewScale, previewPos) {
-  const previewMat = new THREE.MeshStandardMaterial({
-    color: 0xd9576b,
-    roughness: 0.8,
-    side: THREE.BackSide,
-    transparent: true,
-    opacity: 0,
-  });
-  const preview = new THREE.Mesh(previewTubeGeometry, previewMat);
-  preview.scale.setScalar(previewScale);
-  preview.position.copy(previewPos);
-  preview.rotation.y = Math.PI * 0.15;
-  group.add(preview);
+// Recenters an authored creature group on the origin and uniformly scales
+// it so every species shares the same silhouette height (TARGET_HEIGHT),
+// matching the tract paths from path.js so the maze always nests inside.
+function finalizeCharacter(innerGroup, opaqueMaterials) {
+  const box = new THREE.Box3().setFromObject(innerGroup);
+  const size = new THREE.Vector3();
+  box.getSize(size);
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  innerGroup.position.sub(center);
+
+  const root = new THREE.Group();
+  root.add(innerGroup);
+  root.scale.setScalar(TARGET_HEIGHT / Math.max(size.y, 0.001));
 
   return {
-    group,
+    group: root,
     opaqueMaterials,
-    previewMaterial: previewMat,
     setSkinOpacity(v) {
       for (const m of opaqueMaterials) m.opacity = v;
-    },
-    setPreviewOpacity(v) {
-      previewMat.opacity = v;
     },
   };
 }
 
 // Level 0: Worm — simple segmented tube, no limbs.
-export function buildWorm(previewTubeGeometry) {
+export function buildWorm() {
   const group = new THREE.Group();
   const mats = [];
   const color = 0x9bd651;
@@ -55,11 +53,11 @@ export function buildWorm(previewTubeGeometry) {
   eyeR.position.x = 0.55;
   group.add(eyeL, eyeR);
 
-  return wrapCharacter(group, mats, previewTubeGeometry, 0.09, new THREE.Vector3(0, 5.5, 0));
+  return finalizeCharacter(group, mats);
 }
 
 // Level 1: Frog — round body, four short limbs, big eyes.
-export function buildFrog(previewTubeGeometry) {
+export function buildFrog() {
   const group = new THREE.Group();
   const mats = [];
   const color = 0x4fb286;
@@ -102,11 +100,11 @@ export function buildFrog(previewTubeGeometry) {
     group.add(limb);
   }
 
-  return wrapCharacter(group, mats, previewTubeGeometry, 0.075, new THREE.Vector3(0, 5, 0));
+  return finalizeCharacter(group, mats);
 }
 
 // Level 2: Fox — biped-ish mammal with a head, arms, legs, tail.
-export function buildFox(previewTubeGeometry) {
+export function buildFox() {
   const group = new THREE.Group();
   const mats = [];
   const color = 0xe08a3c;
@@ -171,11 +169,11 @@ export function buildFox(previewTubeGeometry) {
   tail.rotation.x = -Math.PI / 2.4;
   group.add(tail);
 
-  return wrapCharacter(group, mats, previewTubeGeometry, 0.055, new THREE.Vector3(0, 8, 0));
+  return finalizeCharacter(group, mats);
 }
 
 // Level 3: Alien — glowing exotic blob with tentacles.
-export function buildAlien(previewTubeGeometry) {
+export function buildAlien() {
   const group = new THREE.Group();
   const mats = [];
   const color = 0x8a4fd6;
@@ -210,7 +208,7 @@ export function buildAlien(previewTubeGeometry) {
     group.add(tentacle);
   }
 
-  return wrapCharacter(group, mats, previewTubeGeometry, 0.075, new THREE.Vector3(0, 6, 0));
+  return finalizeCharacter(group, mats);
 }
 
 export const BUILDERS = [buildWorm, buildFrog, buildFox, buildAlien];
