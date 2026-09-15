@@ -1,14 +1,14 @@
 import * as THREE from 'three';
-import { TARGET_HEIGHT } from './path.js';
 
 function makeSkinMaterial(color, extra = {}) {
   return new THREE.MeshStandardMaterial({ color, roughness: 0.6, transparent: true, opacity: 1, ...extra });
 }
 
 // Recenters an authored creature group on the origin and uniformly scales
-// it so every species shares the same silhouette height (TARGET_HEIGHT),
-// matching the tract paths from path.js so the maze always nests inside.
-function finalizeCharacter(innerGroup, opaqueMaterials) {
+// it to `targetHeight` — the actual bounding-box height of that level's
+// tract curve — so the maze always nests inside the creature's silhouette
+// regardless of how tall/short that particular tract turned out to be.
+function finalizeCharacter(innerGroup, opaqueMaterials, targetHeight) {
   const box = new THREE.Box3().setFromObject(innerGroup);
   const size = new THREE.Vector3();
   box.getSize(size);
@@ -18,7 +18,7 @@ function finalizeCharacter(innerGroup, opaqueMaterials) {
 
   const root = new THREE.Group();
   root.add(innerGroup);
-  root.scale.setScalar(TARGET_HEIGHT / Math.max(size.y, 0.001));
+  root.scale.setScalar(targetHeight / Math.max(size.y, 0.001));
 
   return {
     group: root,
@@ -30,7 +30,7 @@ function finalizeCharacter(innerGroup, opaqueMaterials) {
 }
 
 // Level 0: Worm — simple segmented tube, no limbs.
-export function buildWorm() {
+export function buildWorm(targetHeight) {
   const group = new THREE.Group();
   const mats = [];
   const color = 0x9bd651;
@@ -53,11 +53,11 @@ export function buildWorm() {
   eyeR.position.x = 0.55;
   group.add(eyeL, eyeR);
 
-  return finalizeCharacter(group, mats);
+  return finalizeCharacter(group, mats, targetHeight);
 }
 
 // Level 1: Frog — round body, four short limbs, big eyes.
-export function buildFrog() {
+export function buildFrog(targetHeight) {
   const group = new THREE.Group();
   const mats = [];
   const color = 0x4fb286;
@@ -100,11 +100,11 @@ export function buildFrog() {
     group.add(limb);
   }
 
-  return finalizeCharacter(group, mats);
+  return finalizeCharacter(group, mats, targetHeight);
 }
 
 // Level 2: Fox — biped-ish mammal with a head, arms, legs, tail.
-export function buildFox() {
+export function buildFox(targetHeight) {
   const group = new THREE.Group();
   const mats = [];
   const color = 0xe08a3c;
@@ -169,11 +169,11 @@ export function buildFox() {
   tail.rotation.x = -Math.PI / 2.4;
   group.add(tail);
 
-  return finalizeCharacter(group, mats);
+  return finalizeCharacter(group, mats, targetHeight);
 }
 
 // Level 3: Alien — glowing exotic blob with tentacles.
-export function buildAlien() {
+export function buildAlien(targetHeight) {
   const group = new THREE.Group();
   const mats = [];
   const color = 0x8a4fd6;
@@ -208,7 +208,7 @@ export function buildAlien() {
     group.add(tentacle);
   }
 
-  return finalizeCharacter(group, mats);
+  return finalizeCharacter(group, mats, targetHeight);
 }
 
 export const BUILDERS = [buildWorm, buildFrog, buildFox, buildAlien];

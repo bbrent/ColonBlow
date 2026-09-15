@@ -1,18 +1,35 @@
 import * as THREE from 'three';
 
-// Every level's tract is centered on the origin and scaled to this height,
-// so the maze always nests neatly inside its creature's silhouette and the
-// camera framing/gravity constants stay valid across levels.
-export const TARGET_HEIGHT = 16;
-
-function fitPoints(points, targetHeight) {
+function recenter(points) {
   const box = new THREE.Box3().setFromPoints(points);
-  const size = new THREE.Vector3();
-  box.getSize(size);
   const center = new THREE.Vector3();
   box.getCenter(center);
-  const scale = targetHeight / Math.max(size.y, 0.001);
-  return points.map((p) => p.clone().sub(center).multiplyScalar(scale));
+  return points.map((p) => p.clone().sub(center));
+}
+
+function boundsHeight(points) {
+  const box = new THREE.Box3().setFromPoints(points);
+  return box.max.y - box.min.y;
+}
+
+// A descending spiral, its pitch and radius sized off the tube's own
+// radius so consecutive loops stay clearly separated even though the
+// tract is rendered translucent from outside — the #1 thing that made
+// early tight coils unreadable. `wobble` adds a gentle radius ripple for
+// a more organic/exotic look without pulling loops close together.
+function buildCoil(start, tubeRadius, { turns, pointsPerTurn = 6, pitchMul = 4.2, radiusMul = 3.6, wobble = 0, taper = 1 }) {
+  const pitch = tubeRadius * pitchMul;
+  const coilRadius = tubeRadius * radiusMul;
+  const points = [];
+  const total = turns * pointsPerTurn;
+  for (let i = 0; i <= total; i++) {
+    const f = i / total;
+    const angle = f * turns * Math.PI * 2;
+    const r = coilRadius * THREE.MathUtils.lerp(1, taper, f) * (1 + wobble * Math.sin(f * Math.PI * 3));
+    const y = start.y - f * turns * pitch;
+    points.push(new THREE.Vector3(start.x + Math.cos(angle) * r, y, start.z + Math.sin(angle) * r));
+  }
+  return { points, coilRadius, endY: points[points.length - 1].y };
 }
 
 // Generates a digestive-tract path whose complexity scales with `level`:
@@ -20,87 +37,83 @@ function fitPoints(points, targetHeight) {
 //  1 = frog/fish -> a few loops, moderate length
 //  2 = fox       -> full anatomical coil (stomach + coiled small intestine + colon)
 //  3 = alien     -> exaggerated, tightly twisting, impossible-looking spirals
-export function generatePath(level = 0) {
-  const points = [];
+// `tubeRadius` sizes the coil spacing so loops never crowd each other
+// regardless of how tight or thin a given level's tract is.
+export function generatePath(level = 0, tubeRadius = 1) {
+  let points = [];
 
   if (level === 0) {
-    points.push(new THREE.Vector3(0, 20, 0));
-    points.push(new THREE.Vector3(3, 14, 2));
-    points.push(new THREE.Vector3(-3, 8, -2));
-    points.push(new THREE.Vector3(3, 2, 2));
-    points.push(new THREE.Vector3(-2, -4, -1));
-    points.push(new THREE.Vector3(0, -10, 0));
-    points.push(new THREE.Vector3(0, -16, 0));
+    points = [
+      new THREE.Vector3(0, 8, 0),
+      new THREE.Vector3(1.2, 5.6, 0.8),
+      new THREE.Vector3(-1.2, 3.2, -0.8),
+      new THREE.Vector3(1.2, 0.8, 0.8),
+      new THREE.Vector3(-0.8, -1.6, -0.4),
+      new THREE.Vector3(0, -4, 0),
+      new THREE.Vector3(0, -6.4, 0),
+    ];
   } else if (level === 1) {
-    points.push(new THREE.Vector3(0, 26, 0));
-    points.push(new THREE.Vector3(3, 20, 2));
-    points.push(new THREE.Vector3(8, 14, 3));
-    points.push(new THREE.Vector3(6, 6, -3));
-    points.push(new THREE.Vector3(-2, 2, -4));
-    points.push(new THREE.Vector3(-8, -2, 2));
-    points.push(new THREE.Vector3(-4, -10, 3));
-    points.push(new THREE.Vector3(3, -14, -2));
-    points.push(new THREE.Vector3(0, -22, 0));
-    points.push(new THREE.Vector3(0, -30, 0));
+    points = [
+      new THREE.Vector3(0, 7, 0),
+      new THREE.Vector3(0.8, 5.4, 0.5),
+      new THREE.Vector3(2.1, 3.8, 0.8),
+      new THREE.Vector3(1.6, 1.6, -0.8),
+      new THREE.Vector3(-0.5, 0.5, -1.1),
+      new THREE.Vector3(-2.1, -0.5, 0.5),
+      new THREE.Vector3(-1.1, -2.7, 0.8),
+      new THREE.Vector3(0.8, -3.8, -0.5),
+      new THREE.Vector3(0, -5.9, 0),
+      new THREE.Vector3(0, -8, 0),
+    ];
   } else if (level === 2) {
-    points.push(new THREE.Vector3(0, 40, 0));
-    points.push(new THREE.Vector3(2, 32, -2));
-    points.push(new THREE.Vector3(-2, 24, 2));
-    points.push(new THREE.Vector3(0, 16, 0));
-    points.push(new THREE.Vector3(4, 10, 3));
-    points.push(new THREE.Vector3(10, 6, 4));
-    points.push(new THREE.Vector3(8, -2, 2));
-    points.push(new THREE.Vector3(0, -4, 0));
-    const coilTurns = 5;
-    const coilPointsPerTurn = 6;
-    const totalCoilPoints = coilTurns * coilPointsPerTurn;
-    for (let i = 0; i <= totalCoilPoints; i++) {
-      const f = i / totalCoilPoints;
-      const angle = f * coilTurns * Math.PI * 2;
-      const r = THREE.MathUtils.lerp(9, 6, f);
-      const y = THREE.MathUtils.lerp(-6, -34, f);
-      points.push(new THREE.Vector3(Math.cos(angle) * r, y, Math.sin(angle) * r));
-    }
-    const lastCoil = points[points.length - 1];
-    points.push(new THREE.Vector3(lastCoil.x, lastCoil.y - 2, lastCoil.z));
-    points.push(new THREE.Vector3(16, -30, 0));
-    points.push(new THREE.Vector3(17, -18, 0));
-    points.push(new THREE.Vector3(16, -6, 0));
-    points.push(new THREE.Vector3(8, -2, 0));
-    points.push(new THREE.Vector3(-8, -2, 0));
-    points.push(new THREE.Vector3(-16, -6, 0));
-    points.push(new THREE.Vector3(-17, -18, 0));
-    points.push(new THREE.Vector3(-16, -30, 0));
-    points.push(new THREE.Vector3(-10, -36, 4));
-    points.push(new THREE.Vector3(-4, -34, -3));
-    points.push(new THREE.Vector3(-2, -40, 2));
-    points.push(new THREE.Vector3(0, -48, 0));
-    points.push(new THREE.Vector3(0, -56, 0));
+    // lead-in: mouth -> esophagus -> stomach
+    points.push(new THREE.Vector3(0, 7.5, 0));
+    points.push(new THREE.Vector3(0.6, 5.5, -0.6));
+    points.push(new THREE.Vector3(-0.6, 3.5, 0.6));
+    points.push(new THREE.Vector3(1.2, 1.8, 0.9));
+    points.push(new THREE.Vector3(0.8, 0, 0.2));
+
+    const coil = buildCoil(points[points.length - 1], tubeRadius, { turns: 4, pitchMul: 4.2, radiusMul: 3.4, taper: 0.8 });
+    points.push(...coil.points);
+
+    // large intestine framed wide of the coil so it never overlaps it
+    const cx = coil.coilRadius * 2.1;
+    const topY = coil.endY + coil.coilRadius * 0.4;
+    const botY = coil.endY - coil.coilRadius * 2.6;
+    points.push(new THREE.Vector3(0.8, coil.endY - 0.5, 0.2));
+    points.push(new THREE.Vector3(cx, botY, 0));
+    points.push(new THREE.Vector3(cx, topY, 0));
+    points.push(new THREE.Vector3(0, topY + cx * 0.15, 0));
+    points.push(new THREE.Vector3(-cx, topY, 0));
+    points.push(new THREE.Vector3(-cx, botY, 0));
+    points.push(new THREE.Vector3(-cx * 0.5, botY - cx * 0.5, 1.2));
+    points.push(new THREE.Vector3(0, botY - cx * 0.85, -0.6));
+    points.push(new THREE.Vector3(0, botY - cx * 1.3, 0));
   } else {
-    points.push(new THREE.Vector3(0, 44, 0));
-    points.push(new THREE.Vector3(0, 36, 0));
-    const turns = 7;
-    const pointsPerTurn = 5;
-    const total = turns * pointsPerTurn;
-    for (let i = 0; i <= total; i++) {
-      const f = i / total;
-      const angle = f * turns * Math.PI * 2;
-      const r = 7 + Math.sin(f * Math.PI * 3) * 3.5;
-      const y = THREE.MathUtils.lerp(30, -30, f);
-      points.push(new THREE.Vector3(Math.cos(angle) * r, y, Math.sin(angle) * r));
-    }
-    const last = points[points.length - 1];
-    points.push(new THREE.Vector3(last.x * 0.4, last.y - 6, last.z * 0.4));
-    points.push(new THREE.Vector3(0, -44, 0));
-    points.push(new THREE.Vector3(0, -52, 0));
+    // Alien: a wide, wobbly double-pitch spiral — exotic but still legible.
+    points.push(new THREE.Vector3(0, 7, 0));
+    points.push(new THREE.Vector3(0, 5, 0));
+    const coil = buildCoil(points[points.length - 1], tubeRadius, {
+      turns: 6,
+      pointsPerTurn: 6,
+      pitchMul: 4.4,
+      radiusMul: 4.2,
+      wobble: 0.16,
+      taper: 0.55,
+    });
+    points.push(...coil.points);
+    points.push(new THREE.Vector3(0, coil.endY - tubeRadius * 2, 0));
+    points.push(new THREE.Vector3(0, coil.endY - tubeRadius * 5, 0));
   }
 
-  return new THREE.CatmullRomCurve3(fitPoints(points, TARGET_HEIGHT), false, 'catmullrom', 0.5);
+  const centered = recenter(points);
+  const curve = new THREE.CatmullRomCurve3(centered, false, 'catmullrom', 0.5);
+  return { curve, height: boundsHeight(points) };
 }
 
 export const LEVELS = [
-  { name: 'Worm', tubeRadius: 1.35, timeLimit: 40, obstacles: 6 },
-  { name: 'Frog', tubeRadius: 0.95, timeLimit: 55, obstacles: 10 },
-  { name: 'Fox', tubeRadius: 0.62, timeLimit: 80, obstacles: 16 },
-  { name: 'Alien', tubeRadius: 0.48, timeLimit: 90, obstacles: 22 },
+  { name: 'Worm', tubeRadius: 0.5, timeLimit: 40, obstacles: 6 },
+  { name: 'Frog', tubeRadius: 0.4, timeLimit: 55, obstacles: 10 },
+  { name: 'Fox', tubeRadius: 0.34, timeLimit: 80, obstacles: 16 },
+  { name: 'Alien', tubeRadius: 0.3, timeLimit: 90, obstacles: 22 },
 ];

@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { generatePath, LEVELS, TARGET_HEIGHT } from './path.js';
+import { generatePath, LEVELS } from './path.js';
 import { buildTubeMesh, buildObstacles } from './tube.js';
 import { BUILDERS } from './character.js';
 
@@ -21,8 +21,7 @@ const BOOST_COOLDOWN = 1.2;
 const HIT_INVULN = 1.0;
 const HIT_PENALTY = 4; // seconds lost on collision
 const DOWN = new THREE.Vector3(0, -1, 0);
-
-const PLAY_CAMERA_POS = new THREE.Vector3(0, TARGET_HEIGHT * 0.1, TARGET_HEIGHT * 1.7);
+const FOOD_LIGHT_COLOR = 0xffe0b0;
 
 export class Game {
   constructor({ scene, camera, hud }) {
@@ -34,18 +33,36 @@ export class Game {
     this.stateTime = 0;
     this.keys = new Set();
     this.levelIndex = 0;
-    this.dragYaw = 0;
-    this.dragPitch = 0;
+    this.dragStartQuat = null;
+    this.dragStartVec = null;
 
     this.mazeGroup = new THREE.Group();
     scene.add(this.mazeGroup);
 
     this.food = new THREE.Mesh(
       new THREE.SphereGeometry(1, 16, 16),
-      new THREE.MeshStandardMaterial({ color: 0x8b5a2b, roughness: 0.5, emissive: 0x2a1a08, emissiveIntensity: 0.4 })
+      new THREE.MeshStandardMaterial({ color: 0xffcf6b, roughness: 0.4, emissive: 0xff9d1a, emissiveIntensity: 1.1 })
     );
     this.food.visible = false;
     this.mazeGroup.add(this.food);
+
+    // Two additive halo layers plus a small warm light travel with the
+    // food so its position always reads clearly, even when several
+    // translucent coils of the tract overlap it on screen.
+    this.foodGlow = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 12, 12),
+      new THREE.MeshBasicMaterial({ color: FOOD_LIGHT_COLOR, transparent: true, opacity: 0.55, blending: THREE.AdditiveBlending, depthWrite: false })
+    );
+    this.foodGlowOuter = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 12, 12),
+      new THREE.MeshBasicMaterial({ color: FOOD_LIGHT_COLOR, transparent: true, opacity: 0.22, blending: THREE.AdditiveBlending, depthWrite: false })
+    );
+    this.foodGlow.visible = false;
+    this.foodGlowOuter.visible = false;
+    this.mazeGroup.add(this.foodGlow, this.foodGlowOuter);
+
+    this.foodLight = new THREE.PointLight(FOOD_LIGHT_COLOR, 0, 6);
+    this.mazeGroup.add(this.foodLight);
 
     this._loadLevel(0);
     this._bindInput();
@@ -68,11 +85,12 @@ export class Game {
     this.levelIndex = index;
     this.level = LEVELS[index];
 
-    this.curve = generatePath(index);
+    const { curve, height } = generatePath(index, this.level.tubeRadius);
+    this.curve = curve;
     const tube = buildTubeMesh(this.curve, { radius: this.level.tubeRadius });
     this.tubeMesh = tube.mesh;
     this.tubeRadius = tube.radius;
-    this.foodRadius = this.tubeRadius * 0.28;
+    this.foodRadius = this.tubeRadius * 0.34;
     this.mazeGroup.add(this.tubeMesh);
 
     const { group: obstacleGroup, obstacles } = buildObstacles(this.curve, this.tubeRadius, this.level.obstacles);
@@ -81,10 +99,18 @@ export class Game {
     obstacleGroup.visible = false;
     this.mazeGroup.add(this.obstacleGroup);
 
-    this.character = BUILDERS[index]();
+    this.character = BUILDERS[index](height);
     this.mazeGroup.add(this.character.group);
 
+    // camera framing scales with this level's own tract height, since
+    // each level is now sized off its tubeRadius rather than a shared constant
+    this.playCameraPos = new THREE.Vector3(0, height * 0.12, height * 1.7);
+
     this.food.scale.setScalar(this.foodRadius);
+    this.foodGlow.scale.setScalar(this.foodRadius * 4.5);
+    this.foodGlowOuter.scale.setScalar(this.foodRadius * 9);
+    this.foodLight.intensity = 2.2;
+    this.foodLight.distance = this.tubeRadius * 12;
 
     this.t = 0.001;
     this.tVel = 0;
@@ -95,10 +121,14 @@ export class Game {
     this.invuln = 0;
     this.frameUp = new THREE.Vector3(0, 1, 0);
     this.mazeGroup.quaternion.identity();
+    this.dragStartVec = null;
 
     this.character.setSkinOpacity(1);
     this.character.group.visible = true;
     this.food.visible = false;
+    this.foodGlow.visible = false;
+    this.foodGlowOuter.visible = false;
+    this.foodLight.visible = false;
   }
 
   _bindInput() {
@@ -113,14 +143,55 @@ export class Game {
     window.addEventListener('keyup', (e) => this.keys.delete(e.code));
   }
 
-  // Called by main.js on pointer drag (mouse or touch, unified). dx/dy are
-  // pixel deltas since the last event; rotates the whole creature+maze
-  // rigid body like a labyrinth toy.
-  rotateMaze(dx, dy) {
+  // Arcball rotation: treat the maze as if it sits inside an invisible
+  // sphere filling the viewport, and drag it like you're spinning that
+  // sphere with a finger. Unlike incremental per-frame yaw/pitch, this
+  // recomputes the full rotation from where the drag STARTED to where the
+  // pointer is NOW every move, so it stays reliable and consistent no
+  // matter how the object is currently oriented.
+  _projectToSphere(x, y, w, h) {
+    const radius = Math.min(w, h) * 0.5;
+    const nx = (x - w / 2) / radius;
+    const ny = (y - h / 2) / radius;
+    const lenSq = nx * nx + ny * ny;
+    if (lenSq <= 1) {
+      return new THREE.Vector3(nx, -ny, Math.sqrt(1 - lenSq));
+    }
+    const norm = 1 / Math.sqrt(lenSq);
+    return new THREE.Vector3(nx * norm, -ny * norm, 0);
+  }
+
+  // Called by main.js on pointerdown (mouse or touch, unified).
+  beginDrag(x, y, w, h) {
     if (this.state !== STATE.PLAY) return;
-    const sensitivity = 0.007;
-    const qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), -dx * sensitivity);
-    const qPitch = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -dy * sensitivity);
+    this.dragStartQuat = this.mazeGroup.quaternion.clone();
+    this.dragStartVec = this._projectToSphere(x, y, w, h);
+  }
+
+  // Called by main.js on pointermove while dragging.
+  updateDrag(x, y, w, h) {
+    if (this.state !== STATE.PLAY || !this.dragStartVec) return;
+    const currentVec = this._projectToSphere(x, y, w, h);
+    const axis = new THREE.Vector3().crossVectors(this.dragStartVec, currentVec);
+    if (axis.lengthSq() < 1e-10) return;
+    axis.normalize();
+    const dot = THREE.MathUtils.clamp(this.dragStartVec.dot(currentVec), -1, 1);
+    const angle = Math.acos(dot);
+    // the axis was derived from screen-space coordinates (camera-local);
+    // rotate it into world space via the camera's own orientation.
+    axis.applyQuaternion(this.camera.quaternion);
+    const deltaQuat = new THREE.Quaternion().setFromAxisAngle(axis, angle);
+    this.mazeGroup.quaternion.copy(deltaQuat.multiply(this.dragStartQuat));
+  }
+
+  endDrag() {
+    this.dragStartVec = null;
+  }
+
+  // Keyboard alt-input: small fixed-axis nudges, used only by arrow keys.
+  _nudgeRotation(yaw, pitch) {
+    const qYaw = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(0, 1, 0), yaw);
+    const qPitch = new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), pitch);
     this.mazeGroup.quaternion.premultiply(qYaw).premultiply(qPitch);
   }
 
@@ -192,7 +263,7 @@ export class Game {
     const ease = 1 - Math.pow(1 - p, 3);
     const angle = 0.3;
     const introStart = new THREE.Vector3(Math.sin(angle) * 16, 7, Math.cos(angle) * 16);
-    this.camera.position.lerpVectors(introStart, PLAY_CAMERA_POS, ease);
+    this.camera.position.lerpVectors(introStart, this.playCameraPos, ease);
     this.camera.lookAt(0, 0, 0);
     if (p >= 1) {
       this.mazeGroup.quaternion.identity();
@@ -204,11 +275,13 @@ export class Game {
     const p = Math.min(this.stateTime / 2.2, 1);
     this.character.setSkinOpacity(THREE.MathUtils.lerp(1, 0.14, p));
     this.tubeMesh.material.opacity = THREE.MathUtils.lerp(0, 0.55, p);
-    this.camera.position.copy(PLAY_CAMERA_POS);
+    this.camera.position.copy(this.playCameraPos);
     this.camera.lookAt(0, 0, 0);
     if (p >= 1) {
       this.obstacleGroup.visible = true;
       this.food.visible = true;
+      this.foodGlow.visible = true;
+      this.foodLight.visible = true;
       this._setState(STATE.PLAY);
       this.hud.showMessage('GO! Drag to tilt the creature');
       setTimeout(() => this.hud.hideMessage(), 1400);
@@ -223,7 +296,7 @@ export class Game {
     if (this.keys.has('ArrowRight')) kx += 1;
     if (this.keys.has('ArrowUp')) ky -= 1;
     if (this.keys.has('ArrowDown')) ky += 1;
-    if (kx || ky) this.rotateMaze(kx * 90 * dt, ky * 90 * dt);
+    if (kx || ky) this._nudgeRotation(kx * dt, ky * dt);
 
     if (this.boostCooldown > 0) this.boostCooldown -= dt;
 
@@ -274,9 +347,12 @@ export class Game {
     const center = this.curve.getPointAt(sampleT);
     const playerPos = center.clone().addScaledVector(normal, this.offsetY).addScaledVector(binormal, this.offsetX);
     this.food.position.copy(playerPos);
+    this.foodGlow.position.copy(playerPos);
+    this.foodGlowOuter.position.copy(playerPos);
+    this.foodLight.position.copy(playerPos);
 
     // camera stays fixed/zoomed-out; only the creature rotates
-    this.camera.position.copy(PLAY_CAMERA_POS);
+    this.camera.position.copy(this.playCameraPos);
     this.camera.lookAt(0, 0, 0);
 
     if (this.invuln > 0) this.invuln -= dt;
@@ -305,6 +381,9 @@ export class Game {
   _onLevelWon() {
     this.t = 1;
     this.food.visible = false;
+    this.foodGlow.visible = false;
+    this.foodGlowOuter.visible = false;
+    this.foodLight.visible = false;
     const isLast = this.levelIndex >= LEVELS.length - 1;
     if (isLast) {
       this._setState(STATE.WIN);

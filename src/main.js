@@ -41,30 +41,34 @@ hud.setLevelName(game.level.name);
 
 // Unified drag-to-rotate: Pointer Events cover mouse, touch, and pen with
 // the same code path, so desktop drag and mobile touch drag both "just work".
+// Rotation itself is an arcball (see game.js beginDrag/updateDrag) — the
+// object behaves like it's embedded in a sphere you're spinning, which
+// stays reliable regardless of its current orientation.
 canvas.style.touchAction = 'none';
 let dragging = false;
-let lastX = 0;
-let lastY = 0;
+
+function canvasRelative(e) {
+  const rect = canvas.getBoundingClientRect();
+  return { x: e.clientX - rect.left, y: e.clientY - rect.top, w: rect.width, h: rect.height };
+}
 
 function onPointerDown(e) {
   if (game.state !== STATE.PLAY) return;
   dragging = true;
-  lastX = e.clientX;
-  lastY = e.clientY;
   canvas.setPointerCapture(e.pointerId);
   canvas.style.cursor = 'grabbing';
+  const p = canvasRelative(e);
+  game.beginDrag(p.x, p.y, p.w, p.h);
 }
 function onPointerMove(e) {
   if (!dragging) return;
-  const dx = e.clientX - lastX;
-  const dy = e.clientY - lastY;
-  lastX = e.clientX;
-  lastY = e.clientY;
-  game.rotateMaze(dx, dy);
+  const p = canvasRelative(e);
+  game.updateDrag(p.x, p.y, p.w, p.h);
 }
 function onPointerUp() {
   dragging = false;
   canvas.style.cursor = 'grab';
+  game.endDrag();
 }
 
 canvas.addEventListener('pointerdown', onPointerDown);
