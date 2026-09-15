@@ -79,9 +79,9 @@ export function generatePath(level = 0, tubeRadius = 1) {
   let points = [];
 
   if (level === 0) {
-    points = buildWave(new THREE.Vector3(0, 7, 0), { introDrop: 0.6, introFrac: 0.12, humpRise: 3.0, humpFrac: 0.16, postDrop: 6.5, xAmp: 1, zAmp: 0.8 });
+    points = buildWave(new THREE.Vector3(0, 7, 0), { introDrop: 0.6, introFrac: 0.12, humpRise: 3.0, humpFrac: 0.16, postDrop: 6.5, xAmp: 0.4, zAmp: 0.3 });
   } else if (level === 1) {
-    points = buildWave(new THREE.Vector3(0, 7.5, 0), { introDrop: 0.7, introFrac: 0.12, humpRise: 3.8, humpFrac: 0.16, postDrop: 8, xAmp: 1.6, zAmp: 1.3 });
+    points = buildWave(new THREE.Vector3(0, 7.5, 0), { introDrop: 0.7, introFrac: 0.12, humpRise: 3.8, humpFrac: 0.16, postDrop: 8, xAmp: 0.6, zAmp: 0.5 });
   } else if (level === 2) {
     // lead-in: mouth -> esophagus -> stomach
     points.push(new THREE.Vector3(0, 7.5, 0));
