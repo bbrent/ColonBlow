@@ -12,20 +12,32 @@ function boundsHeight(points) {
   return box.max.y - box.min.y;
 }
 
-// A gently wandering tube whose vertical profile is a net descent PLUS a
-// sine hump — so there is always at least one stretch that climbs uphill
-// (in local space) rather than just falling straight down. That's what
-// makes the level require active tilting: at the default orientation
-// gravity alone cannot carry the food past the hump, no matter how long
-// you wait. `phase` shifts where that hump falls — the default puts it a
-// little way into the path (not right at the mouth) so the player gets a
-// beat of easy, gentle downhill first to get a feel for the controls
-// before the level actually demands a tilt.
-function buildWave(start, { drop, waves = 1.7, humpHeight, phase = Math.PI / 2, segments = 22, xAmp = 1.1, zAmp = 0.9, xFreq = 3.1, zFreq = 2.3 }) {
+// A tube shaped as three deliberate zones: a short, gentle intro descent
+// (just enough that the player sees the food start moving, without
+// building real speed), then a real uphill climb, then the main descent
+// to the exit. The climb is what guarantees the level needs a tilt: a
+// smooth continuous sine hump was tried first, but a steep-enough intro
+// descent builds enough momentum to coast straight over a hump via plain
+// energy conservation — a real physics loophole, not a tuning nit. Hitting
+// the climb from near-rest (because the intro barely accelerates it)
+// closes that loophole while still giving the player a readable "it's
+// moving, now it's stuck" beat instead of a dead stop at t=0.
+function buildWave(
+  start,
+  { introDrop = 0.7, introFrac = 0.12, humpRise, humpFrac = 0.16, postDrop, segments = 28, xAmp = 1.1, zAmp = 0.9, xFreq = 3.1, zFreq = 2.3 }
+) {
   const points = [];
+  const humpEnd = introFrac + humpFrac;
   for (let i = 0; i <= segments; i++) {
     const f = i / segments;
-    const y = start.y - drop * f + humpHeight * Math.sin(f * Math.PI * waves + phase);
+    let y;
+    if (f <= introFrac) {
+      y = start.y - introDrop * (introFrac > 0 ? f / introFrac : 1);
+    } else if (f <= humpEnd) {
+      y = start.y - introDrop + humpRise * ((f - introFrac) / humpFrac);
+    } else {
+      y = start.y - introDrop + humpRise - postDrop * ((f - humpEnd) / (1 - humpEnd));
+    }
     const x = start.x + Math.sin(f * Math.PI * xFreq) * xAmp;
     const z = start.z + Math.cos(f * Math.PI * zFreq) * zAmp;
     points.push(new THREE.Vector3(x, y, z));
@@ -67,9 +79,9 @@ export function generatePath(level = 0, tubeRadius = 1) {
   let points = [];
 
   if (level === 0) {
-    points = buildWave(new THREE.Vector3(0, 7, 0), { drop: 8, humpHeight: 2.6, waves: 1.6, xAmp: 1, zAmp: 0.8 });
+    points = buildWave(new THREE.Vector3(0, 7, 0), { introDrop: 0.6, introFrac: 0.12, humpRise: 3.0, humpFrac: 0.16, postDrop: 6.5, xAmp: 1, zAmp: 0.8 });
   } else if (level === 1) {
-    points = buildWave(new THREE.Vector3(0, 7.5, 0), { drop: 10, humpHeight: 3.2, waves: 1.8, xAmp: 1.6, zAmp: 1.3 });
+    points = buildWave(new THREE.Vector3(0, 7.5, 0), { introDrop: 0.7, introFrac: 0.12, humpRise: 3.8, humpFrac: 0.16, postDrop: 8, xAmp: 1.6, zAmp: 1.3 });
   } else if (level === 2) {
     // lead-in: mouth -> esophagus -> stomach
     points.push(new THREE.Vector3(0, 7.5, 0));
