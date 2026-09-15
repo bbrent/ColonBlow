@@ -17,12 +17,15 @@ function boundsHeight(points) {
 // (in local space) rather than just falling straight down. That's what
 // makes the level require active tilting: at the default orientation
 // gravity alone cannot carry the food past the hump, no matter how long
-// you wait.
-function buildWave(start, { drop, waves = 1.7, humpHeight, segments = 22, xAmp = 1.1, zAmp = 0.9, xFreq = 3.1, zFreq = 2.3 }) {
+// you wait. `phase` shifts where that hump falls — the default puts it a
+// little way into the path (not right at the mouth) so the player gets a
+// beat of easy, gentle downhill first to get a feel for the controls
+// before the level actually demands a tilt.
+function buildWave(start, { drop, waves = 1.7, humpHeight, phase = Math.PI / 2, segments = 22, xAmp = 1.1, zAmp = 0.9, xFreq = 3.1, zFreq = 2.3 }) {
   const points = [];
   for (let i = 0; i <= segments; i++) {
     const f = i / segments;
-    const y = start.y - drop * f + humpHeight * Math.sin(f * Math.PI * waves);
+    const y = start.y - drop * f + humpHeight * Math.sin(f * Math.PI * waves + phase);
     const x = start.x + Math.sin(f * Math.PI * xFreq) * xAmp;
     const z = start.z + Math.cos(f * Math.PI * zFreq) * zAmp;
     points.push(new THREE.Vector3(x, y, z));
@@ -64,9 +67,9 @@ export function generatePath(level = 0, tubeRadius = 1) {
   let points = [];
 
   if (level === 0) {
-    points = buildWave(new THREE.Vector3(0, 7, 0), { drop: 9, humpHeight: 3.2, waves: 1.7, xAmp: 1, zAmp: 0.8 });
+    points = buildWave(new THREE.Vector3(0, 7, 0), { drop: 8, humpHeight: 2.6, waves: 1.6, xAmp: 1, zAmp: 0.8 });
   } else if (level === 1) {
-    points = buildWave(new THREE.Vector3(0, 7.5, 0), { drop: 11, humpHeight: 4.2, waves: 1.9, xAmp: 1.6, zAmp: 1.3 });
+    points = buildWave(new THREE.Vector3(0, 7.5, 0), { drop: 10, humpHeight: 3.2, waves: 1.8, xAmp: 1.6, zAmp: 1.3 });
   } else if (level === 2) {
     // lead-in: mouth -> esophagus -> stomach
     points.push(new THREE.Vector3(0, 7.5, 0));
