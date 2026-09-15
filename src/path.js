@@ -12,6 +12,24 @@ function boundsHeight(points) {
   return box.max.y - box.min.y;
 }
 
+// A gently wandering tube whose vertical profile is a net descent PLUS a
+// sine hump — so there is always at least one stretch that climbs uphill
+// (in local space) rather than just falling straight down. That's what
+// makes the level require active tilting: at the default orientation
+// gravity alone cannot carry the food past the hump, no matter how long
+// you wait.
+function buildWave(start, { drop, waves = 1.7, humpHeight, segments = 22, xAmp = 1.1, zAmp = 0.9, xFreq = 3.1, zFreq = 2.3 }) {
+  const points = [];
+  for (let i = 0; i <= segments; i++) {
+    const f = i / segments;
+    const y = start.y - drop * f + humpHeight * Math.sin(f * Math.PI * waves);
+    const x = start.x + Math.sin(f * Math.PI * xFreq) * xAmp;
+    const z = start.z + Math.cos(f * Math.PI * zFreq) * zAmp;
+    points.push(new THREE.Vector3(x, y, z));
+  }
+  return points;
+}
+
 // A descending spiral, its pitch and radius sized off the tube's own
 // radius so consecutive loops stay clearly separated even though the
 // tract is rendered translucent from outside — the #1 thing that made
@@ -33,38 +51,22 @@ function buildCoil(start, tubeRadius, { turns, pointsPerTurn = 6, pitchMul = 4.2
 }
 
 // Generates a digestive-tract path whose complexity scales with `level`:
-//  0 = worm      -> short, mostly straight, one gentle bend
-//  1 = frog/fish -> a few loops, moderate length
-//  2 = fox       -> full anatomical coil (stomach + coiled small intestine + colon)
-//  3 = alien     -> exaggerated, tightly twisting, impossible-looking spirals
+//  0 = worm      -> short, mostly straight, one gentle bend + a hump
+//  1 = frog/fish -> a few loops + a bigger hump
+//  2 = fox       -> full anatomical coil, with a genuine ascending colon
+//  3 = alien     -> exaggerated spiral that loops back uphill before the exit
+// Every level guarantees at least one stretch where local Y rises against
+// the default orientation, so gravity alone can never solve it — the
+// player always has to tilt the creature to get past that stretch.
 // `tubeRadius` sizes the coil spacing so loops never crowd each other
 // regardless of how tight or thin a given level's tract is.
 export function generatePath(level = 0, tubeRadius = 1) {
   let points = [];
 
   if (level === 0) {
-    points = [
-      new THREE.Vector3(0, 8, 0),
-      new THREE.Vector3(1.2, 5.6, 0.8),
-      new THREE.Vector3(-1.2, 3.2, -0.8),
-      new THREE.Vector3(1.2, 0.8, 0.8),
-      new THREE.Vector3(-0.8, -1.6, -0.4),
-      new THREE.Vector3(0, -4, 0),
-      new THREE.Vector3(0, -6.4, 0),
-    ];
+    points = buildWave(new THREE.Vector3(0, 7, 0), { drop: 9, humpHeight: 3.2, waves: 1.7, xAmp: 1, zAmp: 0.8 });
   } else if (level === 1) {
-    points = [
-      new THREE.Vector3(0, 7, 0),
-      new THREE.Vector3(0.8, 5.4, 0.5),
-      new THREE.Vector3(2.1, 3.8, 0.8),
-      new THREE.Vector3(1.6, 1.6, -0.8),
-      new THREE.Vector3(-0.5, 0.5, -1.1),
-      new THREE.Vector3(-2.1, -0.5, 0.5),
-      new THREE.Vector3(-1.1, -2.7, 0.8),
-      new THREE.Vector3(0.8, -3.8, -0.5),
-      new THREE.Vector3(0, -5.9, 0),
-      new THREE.Vector3(0, -8, 0),
-    ];
+    points = buildWave(new THREE.Vector3(0, 7.5, 0), { drop: 11, humpHeight: 4.2, waves: 1.9, xAmp: 1.6, zAmp: 1.3 });
   } else if (level === 2) {
     // lead-in: mouth -> esophagus -> stomach
     points.push(new THREE.Vector3(0, 7.5, 0));
@@ -76,9 +78,11 @@ export function generatePath(level = 0, tubeRadius = 1) {
     const coil = buildCoil(points[points.length - 1], tubeRadius, { turns: 4, pitchMul: 4.2, radiusMul: 3.4, taper: 0.8 });
     points.push(...coil.points);
 
-    // large intestine framed wide of the coil so it never overlaps it
+    // large intestine framed wide of the coil so it never overlaps it.
+    // The ascending colon genuinely climbs back up from botY to topY —
+    // real anatomy, and it's what forces a second tilt to get past.
     const cx = coil.coilRadius * 2.1;
-    const topY = coil.endY + coil.coilRadius * 0.4;
+    const topY = coil.endY + coil.coilRadius * 1.1;
     const botY = coil.endY - coil.coilRadius * 2.6;
     points.push(new THREE.Vector3(0.8, coil.endY - 0.5, 0.2));
     points.push(new THREE.Vector3(cx, botY, 0));
@@ -90,7 +94,9 @@ export function generatePath(level = 0, tubeRadius = 1) {
     points.push(new THREE.Vector3(0, botY - cx * 0.85, -0.6));
     points.push(new THREE.Vector3(0, botY - cx * 1.3, 0));
   } else {
-    // Alien: a wide, wobbly double-pitch spiral — exotic but still legible.
+    // Alien: a wide, wobbly spiral that then loops back UP before the
+    // final drop to the exit — exotic, impossible-looking anatomy that
+    // also guarantees a second required tilt.
     points.push(new THREE.Vector3(0, 7, 0));
     points.push(new THREE.Vector3(0, 5, 0));
     const coil = buildCoil(points[points.length - 1], tubeRadius, {
@@ -102,8 +108,12 @@ export function generatePath(level = 0, tubeRadius = 1) {
       taper: 0.55,
     });
     points.push(...coil.points);
-    points.push(new THREE.Vector3(0, coil.endY - tubeRadius * 2, 0));
-    points.push(new THREE.Vector3(0, coil.endY - tubeRadius * 5, 0));
+    const last = coil.points[coil.points.length - 1];
+    points.push(new THREE.Vector3(last.x * 0.6, coil.endY - tubeRadius * 1.2, last.z * 0.6));
+    points.push(new THREE.Vector3(-last.x * 0.4, coil.endY + tubeRadius * 5.5, -last.z * 0.4 + 0.6));
+    points.push(new THREE.Vector3(0.4, coil.endY + tubeRadius * 2.5, -0.3));
+    points.push(new THREE.Vector3(0, coil.endY - tubeRadius * 3, 0));
+    points.push(new THREE.Vector3(0, coil.endY - tubeRadius * 7, 0));
   }
 
   const centered = recenter(points);
@@ -112,8 +122,8 @@ export function generatePath(level = 0, tubeRadius = 1) {
 }
 
 export const LEVELS = [
-  { name: 'Worm', tubeRadius: 0.5, timeLimit: 40, obstacles: 6 },
-  { name: 'Frog', tubeRadius: 0.4, timeLimit: 55, obstacles: 10 },
-  { name: 'Fox', tubeRadius: 0.34, timeLimit: 80, obstacles: 16 },
-  { name: 'Alien', tubeRadius: 0.3, timeLimit: 90, obstacles: 22 },
+  { name: 'Worm', tubeRadius: 0.5, timeLimit: 40, obstacles: 6, camZoom: 1.55 },
+  { name: 'Frog', tubeRadius: 0.4, timeLimit: 55, obstacles: 10, camZoom: 1.4 },
+  { name: 'Fox', tubeRadius: 0.34, timeLimit: 80, obstacles: 16, camZoom: 1.15 },
+  { name: 'Alien', tubeRadius: 0.3, timeLimit: 90, obstacles: 22, camZoom: 1.05 },
 ];

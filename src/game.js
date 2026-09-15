@@ -104,7 +104,8 @@ export class Game {
 
     // camera framing scales with this level's own tract height, since
     // each level is now sized off its tubeRadius rather than a shared constant
-    this.playCameraPos = new THREE.Vector3(0, height * 0.12, height * 1.7);
+    const zoom = this.level.camZoom ?? 1.5;
+    this.playCameraPos = new THREE.Vector3(0, height * 0.12 * zoom, height * zoom);
 
     this.food.scale.setScalar(this.foodRadius);
     this.foodGlow.scale.setScalar(this.foodRadius * 4.5);
