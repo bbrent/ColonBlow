@@ -122,8 +122,8 @@ export function generatePath(level = 0, tubeRadius = 1) {
 }
 
 export const LEVELS = [
-  { name: 'Worm', tubeRadius: 0.5, timeLimit: 40, obstacles: 6, camZoom: 1.55 },
-  { name: 'Frog', tubeRadius: 0.4, timeLimit: 55, obstacles: 10, camZoom: 1.4 },
-  { name: 'Fox', tubeRadius: 0.34, timeLimit: 80, obstacles: 16, camZoom: 1.15 },
-  { name: 'Alien', tubeRadius: 0.3, timeLimit: 90, obstacles: 22, camZoom: 1.05 },
+  { name: 'Worm', tubeRadius: 0.5, timeLimit: 40, obstacles: 6, camZoom: 1.6 },
+  { name: 'Frog', tubeRadius: 0.4, timeLimit: 55, obstacles: 10, camZoom: 1.5 },
+  { name: 'Fox', tubeRadius: 0.34, timeLimit: 80, obstacles: 16, camZoom: 1.35 },
+  { name: 'Alien', tubeRadius: 0.3, timeLimit: 90, obstacles: 22, camZoom: 1.25 },
 ];
