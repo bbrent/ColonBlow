@@ -12,8 +12,8 @@ export function buildChamber({
   center = new THREE.Vector3(),
   entryDir = new THREE.Vector3(0, 1, 0),
   valveDir = new THREE.Vector3(0.6, -0.5, 0.6),
-  obstacleCount = 5,
-  wallColor = 0xd9576b,
+  obstacleCount = 4,
+  wallColor = 0xe0954a, // warm amber, deliberately distinct from the tube's pink so a chamber reads as a different organ at a glance
   label = 'Stomach',
 } = {}) {
   entryDir = entryDir.clone().normalize();
@@ -24,11 +24,11 @@ export function buildChamber({
 
   const wallMaterial = new THREE.MeshStandardMaterial({
     color: wallColor,
-    roughness: 0.7,
+    roughness: 0.65,
     metalness: 0.05,
     side: THREE.DoubleSide,
-    emissive: 0x3a0f16,
-    emissiveIntensity: 0.3,
+    emissive: 0x4a2a0a,
+    emissiveIntensity: 0.45,
     transparent: true,
     opacity: 0,
     depthWrite: false,
@@ -36,30 +36,40 @@ export function buildChamber({
   const wall = new THREE.Mesh(new THREE.SphereGeometry(radius, 28, 20), wallMaterial);
   group.add(wall);
 
-  // Valve marker: a glowing ring on the inner wall showing the exit target.
+  // Valve marker: a bright disc + ring combo on the inner wall showing the
+  // exit target — sized generously (not just a thin line) since the camera
+  // sits far enough back that a subtle marker disappears entirely.
+  const valveGroup = new THREE.Group();
   const valveMat = new THREE.MeshStandardMaterial({
     color: 0x9bffb0,
     emissive: 0x3dff7a,
-    emissiveIntensity: 1.1,
+    emissiveIntensity: 1.8,
     transparent: true,
     opacity: 0,
     side: THREE.DoubleSide,
+    depthWrite: false,
   });
-  const valveMarker = new THREE.Mesh(new THREE.RingGeometry(radius * 0.16, radius * 0.22, 24), valveMat);
-  valveMarker.position.copy(valveDir).multiplyScalar(radius * 0.97);
-  valveMarker.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), valveDir);
-  group.add(valveMarker);
+  const valveDisc = new THREE.Mesh(new THREE.CircleGeometry(radius * 0.3, 24), valveMat);
+  const valveRing = new THREE.Mesh(new THREE.RingGeometry(radius * 0.32, radius * 0.46, 24), valveMat);
+  valveGroup.add(valveDisc, valveRing);
+  valveGroup.position.copy(valveDir).multiplyScalar(radius * 0.96);
+  valveGroup.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), valveDir);
+  group.add(valveGroup);
+
+  const valveLight = new THREE.PointLight(0x3dff7a, 0, radius * 3.5);
+  valveLight.position.copy(valveDir).multiplyScalar(radius * 0.85);
+  group.add(valveLight);
 
   // Turbulence obstacles: small floating blobs inside the chamber volume.
   const obstacleGroup = new THREE.Group();
   const obGeo = new THREE.SphereGeometry(1, 10, 10);
-  const obMat = new THREE.MeshStandardMaterial({ color: 0xffd166, roughness: 0.5, emissive: 0x553300, emissiveIntensity: 0.4 });
+  const obMat = new THREE.MeshStandardMaterial({ color: 0x8a5a2b, roughness: 0.5, emissive: 0x2a1a08, emissiveIntensity: 0.4 });
   const obstacles = [];
   for (let i = 0; i < obstacleCount; i++) {
-    const dir = randomDirAwayFrom([entryDir, valveDir], 35);
+    const dir = randomDirAwayFrom([entryDir, valveDir], 45);
     const depth = radius * (0.45 + Math.random() * 0.35); // not right at the wall, not at dead center
     const pos = dir.clone().multiplyScalar(depth);
-    const scale = radius * (0.09 + Math.random() * 0.07);
+    const scale = radius * (0.09 + Math.random() * 0.06);
     const mesh = new THREE.Mesh(obGeo, obMat);
     mesh.position.copy(pos);
     mesh.scale.setScalar(scale);
@@ -72,8 +82,9 @@ export function buildChamber({
     group,
     wall,
     wallMaterial,
-    valveMarker,
+    valveGroup,
     valveMaterial: valveMat,
+    valveLight,
     obstacleGroup,
     obstacles,
     radius,

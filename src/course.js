@@ -18,9 +18,14 @@ export function buildFoxCourse(tubeRadius) {
     new THREE.Vector3(0.3, 4.8, 0.2),
   ];
 
-  const stomachRadius = tubeRadius * 4.5;
-  const stomachCenter = new THREE.Vector3(0, 2.2, 0);
+  const stomachRadius = tubeRadius * 7.5;
   const esoEnd = esoPoints[esoPoints.length - 1];
+  // Center the chamber directly "below" (along the esophagus's own
+  // direction) the point it connects to, so that point sits ON the
+  // sphere's surface regardless of how big the chamber is — otherwise a
+  // bigger radius silently buries the seam deep inside the chamber.
+  const esoDir = esoEnd.clone().sub(esoPoints[esoPoints.length - 2]).normalize();
+  const stomachCenter = esoEnd.clone().addScaledVector(esoDir, stomachRadius);
   const entryDir = esoEnd.clone().sub(stomachCenter).normalize();
   const valveDir = new THREE.Vector3(0.8, -0.55, 0.5).normalize();
   const valveExitPoint = stomachCenter.clone().addScaledVector(valveDir, stomachRadius);
@@ -66,7 +71,7 @@ export function buildFoxCourse(tubeRadius) {
       radius: stomachRadius,
       entryDir,
       valveDir,
-      obstacleCount: 5,
+      obstacleCount: 4,
       label: 'Small Intestine',
     },
     { mode: 'tube', curve: colonCurve, tubeRadius, obstacleCount: 13, label: 'Done' },

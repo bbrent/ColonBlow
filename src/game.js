@@ -98,7 +98,7 @@ export class Game {
         this.mazeGroup.remove(seg.group);
         seg.wall.geometry.dispose();
         seg.wallMaterial.dispose();
-        seg.valveMarker.geometry.dispose();
+        for (const child of seg.valveGroup.children) child.geometry.dispose();
         seg.valveMaterial.dispose();
         if (seg.obstacles[0]) {
           seg.obstacles[0].mesh.geometry.dispose();
@@ -355,8 +355,9 @@ export class Game {
       if (seg.mode === 'tube') {
         seg.tubeMesh.material.opacity = THREE.MathUtils.lerp(0, 0.55, p);
       } else {
-        seg.wallMaterial.opacity = THREE.MathUtils.lerp(0, 0.5, p);
-        seg.valveMaterial.opacity = THREE.MathUtils.lerp(0, 0.9, p);
+        seg.wallMaterial.opacity = THREE.MathUtils.lerp(0, 0.45, p);
+        seg.valveMaterial.opacity = THREE.MathUtils.lerp(0, 0.95, p);
+        seg.valveLight.intensity = THREE.MathUtils.lerp(0, 1.6, p);
       }
     }
     this.camera.position.copy(this.playCameraPos);
