@@ -1,5 +1,16 @@
 import * as THREE from 'three';
 
+export function recenterBy(points, offset) {
+  return points.map((p) => p.clone().sub(offset));
+}
+
+export function boxCenter(points) {
+  const box = new THREE.Box3().setFromPoints(points);
+  const center = new THREE.Vector3();
+  box.getCenter(center);
+  return center;
+}
+
 function recenter(points) {
   const box = new THREE.Box3().setFromPoints(points);
   const center = new THREE.Vector3();
@@ -7,7 +18,7 @@ function recenter(points) {
   return points.map((p) => p.clone().sub(center));
 }
 
-function boundsHeight(points) {
+export function boundsHeight(points) {
   const box = new THREE.Box3().setFromPoints(points);
   return box.max.y - box.min.y;
 }
@@ -50,7 +61,7 @@ function buildWave(
 // tract is rendered translucent from outside — the #1 thing that made
 // early tight coils unreadable. `wobble` adds a gentle radius ripple for
 // a more organic/exotic look without pulling loops close together.
-function buildCoil(start, tubeRadius, { turns, pointsPerTurn = 6, pitchMul = 4.2, radiusMul = 3.6, wobble = 0, taper = 1 }) {
+export function buildCoil(start, tubeRadius, { turns, pointsPerTurn = 6, pitchMul = 4.2, radiusMul = 3.6, wobble = 0, taper = 1 }) {
   const pitch = tubeRadius * pitchMul;
   const coilRadius = tubeRadius * radiusMul;
   const points = [];
