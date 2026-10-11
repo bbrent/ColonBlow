@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { generatePath, LEVELS } from './path.js';
 import { buildTubeMesh, buildObstacles } from './tube.js';
 import { buildChamber } from './chamber.js';
-import { buildFoxCourse } from './course.js';
+import { buildFoxCourse, buildBirdCourse } from './course.js';
 import { BUILDERS } from './character.js';
 
 const STATE = {
@@ -36,6 +36,7 @@ const FOOD_LIGHT_COLOR = 0xffe0b0;
 // or chamber) handled by its own physics update below.
 const COURSE_BUILDERS = {
   2: buildFoxCourse,
+  3: buildBirdCourse,
 };
 
 export class Game {
@@ -134,6 +135,10 @@ export class Game {
         entryDir: seg.entryDir,
         valveDir: seg.valveDir,
         obstacleCount: seg.obstacleCount,
+        obstacleScale: seg.obstacleScale,
+        obstacleColor: seg.obstacleColor,
+        wallColor: seg.wallColor,
+        wallEmissive: seg.wallEmissive,
         label: seg.label,
       });
       Object.assign(seg, chamber);

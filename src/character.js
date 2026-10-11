@@ -53,6 +53,12 @@ export function buildWorm(targetHeight) {
   eyeR.position.x = 0.55;
   group.add(eyeL, eyeR);
 
+  // mouth: a small round pucker at the tip of the head segment
+  const mouth = new THREE.Mesh(new THREE.SphereGeometry(0.28, 10, 8), new THREE.MeshStandardMaterial({ color: 0x3a1410 }));
+  mouth.position.set(0, 8.2, 1.48);
+  mouth.scale.set(1, 0.7, 0.4);
+  group.add(mouth);
+
   return finalizeCharacter(group, mats, targetHeight);
 }
 
@@ -83,6 +89,12 @@ export function buildFrog(targetHeight) {
   const pupilR = pupilL.clone();
   pupilR.position.x = 1.1;
   group.add(pupilL, pupilR);
+
+  // mouth: a wide flat grin across the front of the face
+  const mouth = new THREE.Mesh(new THREE.CapsuleGeometry(0.1, 2.1, 4, 8), new THREE.MeshStandardMaterial({ color: 0x1f4a38 }));
+  mouth.position.set(0, 5.6, 2.55);
+  mouth.rotation.z = Math.PI / 2;
+  group.add(mouth);
 
   const limbGeo = new THREE.CapsuleGeometry(0.45, 2, 6, 8);
   const limbMat = makeSkinMaterial(color);
@@ -126,6 +138,12 @@ export function buildFox(targetHeight) {
   snout.rotation.x = Math.PI / 2;
   snout.position.set(0, 8.9, 1.6);
   group.add(snout);
+
+  // mouth: a dark mouth line at the snout's tip
+  const mouth = new THREE.Mesh(new THREE.CapsuleGeometry(0.07, 0.5, 4, 6), new THREE.MeshStandardMaterial({ color: 0x2a1410 }));
+  mouth.position.set(0, 8.55, 2.2);
+  mouth.rotation.z = Math.PI / 2;
+  group.add(mouth);
 
   const earGeo = new THREE.ConeGeometry(0.55, 1.3, 8);
   const earMat = makeSkinMaterial(color);
@@ -172,7 +190,7 @@ export function buildFox(targetHeight) {
   return finalizeCharacter(group, mats, targetHeight);
 }
 
-// Level 3: Alien — glowing exotic blob with tentacles.
+// Level 4: Alien — glowing exotic blob with tentacles.
 export function buildAlien(targetHeight) {
   const group = new THREE.Group();
   const mats = [];
@@ -196,6 +214,21 @@ export function buildAlien(targetHeight) {
     group.add(eye);
   }
 
+  // mouth: a toothy radial maw low on the core
+  const mouthRing = new THREE.Mesh(new THREE.TorusGeometry(0.55, 0.14, 8, 14), new THREE.MeshStandardMaterial({ color: 0x1a0a2e }));
+  mouthRing.position.set(0, 5.4, 2.0);
+  group.add(mouthRing);
+  const toothGeo = new THREE.ConeGeometry(0.1, 0.3, 6);
+  const toothMat = new THREE.MeshStandardMaterial({ color: 0xe8e0ff });
+  for (let i = 0; i < 8; i++) {
+    const a = (i / 8) * Math.PI * 2;
+    const tooth = new THREE.Mesh(toothGeo, toothMat);
+    tooth.position.set(Math.cos(a) * 0.55, 5.4 + Math.sin(a) * 0.55, 2.0);
+    tooth.lookAt(0, 5.4, 2.0);
+    tooth.rotateX(Math.PI / 2);
+    group.add(tooth);
+  }
+
   const tentacleMat = makeSkinMaterial(color, { emissive: 0x2a0f52, emissiveIntensity: 0.4 });
   mats.push(tentacleMat);
   const tentacleGeo = new THREE.CapsuleGeometry(0.35, 3.6, 6, 8);
@@ -211,4 +244,84 @@ export function buildAlien(targetHeight) {
   return finalizeCharacter(group, mats, targetHeight);
 }
 
-export const BUILDERS = [buildWorm, buildFrog, buildFox, buildAlien];
+// Level 3: Bird — plump body, two wings, a real open beak, thin legs.
+export function buildBird(targetHeight) {
+  const group = new THREE.Group();
+  const mats = [];
+  const color = 0x4a90d9;
+
+  const bodyMat = makeSkinMaterial(color);
+  mats.push(bodyMat);
+  const body = new THREE.Mesh(new THREE.SphereGeometry(2.3, 20, 16), bodyMat);
+  body.scale.set(1, 1.25, 1.1);
+  body.position.y = 5;
+  group.add(body);
+
+  const headMat = makeSkinMaterial(color);
+  mats.push(headMat);
+  const head = new THREE.Mesh(new THREE.SphereGeometry(1.3, 18, 14), headMat);
+  head.position.set(0, 8.3, 0.3);
+  group.add(head);
+
+  const eyeGeo = new THREE.SphereGeometry(0.16, 8, 8);
+  const eyeMat = new THREE.MeshStandardMaterial({ color: 0x1a1a1a });
+  const eyeL = new THREE.Mesh(eyeGeo, eyeMat);
+  eyeL.position.set(-0.5, 8.55, 1.2);
+  const eyeR = eyeL.clone();
+  eyeR.position.x = 0.5;
+  group.add(eyeL, eyeR);
+
+  // beak: two wedge cones forming an open upper/lower mandible — the
+  // defining feature the user asked for on this species
+  const beakMat = makeSkinMaterial(0xf2a93c, { roughness: 0.4 });
+  mats.push(beakMat);
+  const beakUpper = new THREE.Mesh(new THREE.ConeGeometry(0.45, 1.3, 4), beakMat);
+  beakUpper.rotation.x = Math.PI / 2;
+  beakUpper.rotation.z = Math.PI / 4;
+  beakUpper.position.set(0, 8.25, 1.75);
+  const beakLower = beakUpper.clone();
+  beakLower.scale.set(0.8, 0.8, 0.7);
+  beakLower.position.set(0, 7.95, 1.6);
+  group.add(beakUpper, beakLower);
+
+  // wings: flattened cones swept back along the sides
+  const wingMat = makeSkinMaterial(0x2f6bb0);
+  mats.push(wingMat);
+  const wingGeo = new THREE.ConeGeometry(1.1, 3.4, 12);
+  const wingL = new THREE.Mesh(wingGeo, wingMat);
+  wingL.scale.set(0.45, 1, 0.9);
+  wingL.position.set(-2.2, 5.2, -0.3);
+  wingL.rotation.z = THREE.MathUtils.degToRad(80);
+  wingL.rotation.y = THREE.MathUtils.degToRad(-15);
+  const wingR = wingL.clone();
+  wingR.position.x = 2.2;
+  wingR.rotation.z = -wingL.rotation.z;
+  wingR.rotation.y = -wingL.rotation.y;
+  group.add(wingL, wingR);
+
+  // thin legs
+  const legMat = makeSkinMaterial(0xf2a93c, { roughness: 0.5 });
+  mats.push(legMat);
+  const legGeo = new THREE.CapsuleGeometry(0.22, 2.2, 6, 8);
+  const legL = new THREE.Mesh(legGeo, legMat);
+  legL.position.set(-0.7, 1.6, 0);
+  const legR = legL.clone();
+  legR.position.x = 0.7;
+  group.add(legL, legR);
+
+  // tail feather fan
+  const tailMat = makeSkinMaterial(0x2f6bb0);
+  mats.push(tailMat);
+  for (let i = -1; i <= 1; i++) {
+    const feather = new THREE.Mesh(new THREE.ConeGeometry(0.35, 2.2, 6), tailMat);
+    feather.position.set(i * 0.5, 5, -2.4);
+    feather.rotation.x = -Math.PI / 2.1;
+    feather.rotation.z = i * 0.25;
+    group.add(feather);
+  }
+
+  return finalizeCharacter(group, mats, targetHeight);
+}
+
+export const BUILDERS = [buildWorm, buildFrog, buildFox, buildBird, buildAlien];
+

@@ -79,8 +79,9 @@ export function buildCoil(start, tubeRadius, { turns, pointsPerTurn = 6, pitchMu
 // Generates a digestive-tract path whose complexity scales with `level`:
 //  0 = worm      -> short, mostly straight, one gentle bend + a hump
 //  1 = frog/fish -> a few loops + a bigger hump
-//  2 = fox       -> full anatomical coil, with a genuine ascending colon
-//  3 = alien     -> exaggerated spiral that loops back uphill before the exit
+//  2 = fox       -> full anatomical coil, with a genuine ascending colon (course-built, see course.js)
+//  3 = bird      -> esophagus + crop + gizzard chambers + short intestine (course-built, see course.js)
+//  4 = alien     -> exaggerated spiral that loops back uphill before the exit
 // Every level guarantees at least one stretch where local Y rises against
 // the default orientation, so gravity alone can never solve it — the
 // player always has to tilt the creature to get past that stretch.
@@ -119,7 +120,7 @@ export function generatePath(level = 0, tubeRadius = 1) {
     points.push(new THREE.Vector3(-cx * 0.5, botY - cx * 0.5, 1.2));
     points.push(new THREE.Vector3(0, botY - cx * 0.85, -0.6));
     points.push(new THREE.Vector3(0, botY - cx * 1.3, 0));
-  } else {
+  } else if (level === 4) {
     // Alien: a wide, wobbly spiral that then loops back UP before the
     // final drop to the exit — exotic, impossible-looking anatomy that
     // also guarantees a second required tilt.
@@ -140,6 +141,13 @@ export function generatePath(level = 0, tubeRadius = 1) {
     points.push(new THREE.Vector3(0.4, coil.endY + tubeRadius * 2.5, -0.3));
     points.push(new THREE.Vector3(0, coil.endY - tubeRadius * 3, 0));
     points.push(new THREE.Vector3(0, coil.endY - tubeRadius * 7, 0));
+  } else {
+    // Levels 2 (fox) and 3 (bird) are always built as multi-segment
+    // courses (see course.js + game.js's COURSE_BUILDERS) and never
+    // reach this function in practice. This is just a defensive
+    // fallback so an unexpected index still returns a valid path
+    // instead of an empty one.
+    points = buildWave(new THREE.Vector3(0, 7, 0), { introDrop: 0.6, introFrac: 0.12, humpRise: 3.0, humpFrac: 0.16, postDrop: 6.5, xAmp: 0.4, zAmp: 0.3 });
   }
 
   const centered = recenter(points);
@@ -151,5 +159,6 @@ export const LEVELS = [
   { name: 'Worm', tubeRadius: 0.5, timeLimit: 40, obstacles: 6, camZoom: 1.6 },
   { name: 'Frog', tubeRadius: 0.4, timeLimit: 55, obstacles: 10, camZoom: 1.5 },
   { name: 'Fox', tubeRadius: 0.34, timeLimit: 80, obstacles: 16, camZoom: 1.35 },
+  { name: 'Bird', tubeRadius: 0.32, timeLimit: 100, obstacles: 14, camZoom: 1.3 },
   { name: 'Alien', tubeRadius: 0.3, timeLimit: 90, obstacles: 22, camZoom: 1.25 },
 ];

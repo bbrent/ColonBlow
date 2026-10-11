@@ -13,7 +13,10 @@ export function buildChamber({
   entryDir = new THREE.Vector3(0, 1, 0),
   valveDir = new THREE.Vector3(0.6, -0.5, 0.6),
   obstacleCount = 4,
+  obstacleScale = 1, // size multiplier — e.g. a gizzard's grinding stones read bigger than a stomach's turbulence
+  obstacleColor = 0x8a5a2b,
   wallColor = 0xe0954a, // warm amber, deliberately distinct from the tube's pink so a chamber reads as a different organ at a glance
+  wallEmissive = 0x4a2a0a,
   label = 'Stomach',
 } = {}) {
   entryDir = entryDir.clone().normalize();
@@ -27,7 +30,7 @@ export function buildChamber({
     roughness: 0.65,
     metalness: 0.05,
     side: THREE.DoubleSide,
-    emissive: 0x4a2a0a,
+    emissive: wallEmissive,
     emissiveIntensity: 0.45,
     transparent: true,
     opacity: 0,
@@ -63,13 +66,13 @@ export function buildChamber({
   // Turbulence obstacles: small floating blobs inside the chamber volume.
   const obstacleGroup = new THREE.Group();
   const obGeo = new THREE.SphereGeometry(1, 10, 10);
-  const obMat = new THREE.MeshStandardMaterial({ color: 0x8a5a2b, roughness: 0.5, emissive: 0x2a1a08, emissiveIntensity: 0.4 });
+  const obMat = new THREE.MeshStandardMaterial({ color: obstacleColor, roughness: 0.5, emissive: 0x2a1a08, emissiveIntensity: 0.4 });
   const obstacles = [];
   for (let i = 0; i < obstacleCount; i++) {
     const dir = randomDirAwayFrom([entryDir, valveDir], 45);
     const depth = radius * (0.45 + Math.random() * 0.35); // not right at the wall, not at dead center
     const pos = dir.clone().multiplyScalar(depth);
-    const scale = radius * (0.09 + Math.random() * 0.06);
+    const scale = radius * (0.09 + Math.random() * 0.06) * obstacleScale;
     const mesh = new THREE.Mesh(obGeo, obMat);
     mesh.position.copy(pos);
     mesh.scale.setScalar(scale);
