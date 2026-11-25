@@ -1,0 +1,14 @@
+{
+  "id": "colonblow",
+  "name": "ColonBlow",
+  "genre": "Physics toy",
+  "description": "Tilt the creature to roll food through its guts, five species deep.",
+  "devices": [
+    "phone",
+    "tablet",
+    "desktop"
+  ],
+  "trust": "casual",
+  "url": "/colonblow/",
+  "leaderboards": []
+}
