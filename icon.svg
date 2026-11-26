@@ -1,0 +1,57 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <radialGradient id="bgGlow" cx="50%" cy="40%" r="80%">
+      <stop offset="0%" stop-color="#241019"/>
+      <stop offset="60%" stop-color="#120a12"/>
+      <stop offset="100%" stop-color="#0b0710"/>
+    </radialGradient>
+    <linearGradient id="wormBody" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0%" stop-color="#a9e468"/>
+      <stop offset="100%" stop-color="#6ea636"/>
+    </linearGradient>
+    <radialGradient id="foodGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#fff6e0" stop-opacity="1"/>
+      <stop offset="30%" stop-color="#ffcf6b" stop-opacity="0.95"/>
+      <stop offset="100%" stop-color="#ffcf6b" stop-opacity="0"/>
+    </radialGradient>
+    <clipPath id="squircle">
+      <rect x="0" y="0" width="512" height="512" rx="112" ry="112"/>
+    </clipPath>
+  </defs>
+
+  <g clip-path="url(#squircle)">
+    <rect x="0" y="0" width="512" height="512" fill="url(#bgGlow)"/>
+
+    <!-- worm body, outlined for a crisp silhouette at small sizes -->
+    <g fill="url(#wormBody)" stroke="#3d1420" stroke-width="7" opacity="0.88">
+      <circle cx="256" cy="122" r="84"/>
+      <circle cx="256" cy="212" r="78"/>
+      <circle cx="256" cy="298" r="70"/>
+      <circle cx="256" cy="376" r="58"/>
+      <circle cx="256" cy="436" r="44"/>
+    </g>
+
+    <!-- coiled maze tube, bold and saturated so it stays legible at small sizes -->
+    <path d="M 256 90
+             C 326 136, 326 182, 256 214
+             C 186 246, 186 288, 256 320
+             C 326 352, 326 394, 262 418"
+          fill="none" stroke="#e8445f" stroke-width="34" stroke-linecap="round"/>
+    <path d="M 256 90
+             C 326 136, 326 182, 256 214
+             C 186 246, 186 288, 256 320
+             C 326 352, 326 394, 262 418"
+          fill="none" stroke="#ff8fa8" stroke-width="10" stroke-linecap="round" opacity="0.8"/>
+
+    <!-- food glow, bright and unmissable -->
+    <circle cx="218" cy="283" r="70" fill="url(#foodGlow)"/>
+    <circle cx="218" cy="283" r="24" fill="#fff3d2"/>
+    <circle cx="218" cy="283" r="24" fill="#ffcf6b" opacity="0.85"/>
+
+    <!-- eyes -->
+    <circle cx="222" cy="100" r="15" fill="#17120a"/>
+    <circle cx="282" cy="100" r="15" fill="#17120a"/>
+    <circle cx="225" cy="96" r="4" fill="#fff" opacity="0.8"/>
+    <circle cx="285" cy="96" r="4" fill="#fff" opacity="0.8"/>
+  </g>
+</svg>
